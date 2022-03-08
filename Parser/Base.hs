@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
 module Parser.Base where
 
 import Types
@@ -8,14 +6,20 @@ import Text.Parsec hiding ((<|>), some, many, optional)
 import Control.Applicative
 import Data.Char
 
-type Parser a = forall s u m. Stream s m Char => ParsecT s u m a
+type Parser = Parsec String ()
 
 parseRegister :: Parser Operand
-parseRegister = Register 4 <$> foldr ((<|>) . try . string) empty ["eax", "ebx", "ecx", "edx", "edi", "esi", "r8d", "r9d"]
+parseRegister = many (char '+') *> (Register 4 <$> foldr ((<|>) . try . string) empty ["eax", "ebx", "ecx", "edx", "edi", "esi", "r8d", "r9d"])
 
 parseImmediate :: Parser Operand
-parseImmediate = Immediate <$> ((negate <$ char '-' <|> id <$ optional (char '+')) <*> (parseHex <|> parseBin <|> parseOct <|> parseDec))
+parseImmediate = Immediate <$> parseNumber
+
+parseNumber :: Parser Int
+parseNumber = sign <*> (parseHex <|> parseBin <|> parseOct <|> parseDec)
   where
+    sign :: Parser (Int -> Int)
+    sign = liftA2 (.) (negate <$ char '-' ) sign <|> char '+' *> sign <|> return id
+  
     parseHex :: Parser Int
     parseHex = try (char '0' *> oneOf "xX") *> (readBase 16 <$> some hexDigit)
 
