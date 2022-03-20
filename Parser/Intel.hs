@@ -91,7 +91,7 @@ parseImul = do
 parseExtIdiv :: Parser Instruction
 parseExtIdiv = do
   size <- (4 <$ try (string "cdq")) <|> (2 <$ try (string "cwd")) <|> (1 <$ try (string "cbw"))
-  newline
+  endOfLine
   string "idiv"
   spaces
   ops <- sepBy1 parseOperand comma

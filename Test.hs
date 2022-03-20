@@ -21,6 +21,6 @@ test p input = either (fail . show) (\instr -> hPutBuilder stdout $ snd $ evalRW
 
 main = do
   (fname : _) <- getArgs
-  Right instr <- parseFromFile (sepEndBy1 parseInstruction newline) fname
+  instr <- either (fail . show) id <$> parseFromFile (sepEndBy1 parseInstruction endOfLine <* eof) fname
   let (_, res) = evalRWS (traverse processInstruction instr) () ()
   withFile (fname ++ ".mcfunction") WriteMode $ \h -> hPutBuilder h res

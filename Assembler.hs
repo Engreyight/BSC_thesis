@@ -24,7 +24,7 @@ calculateAddress (Memory size index scale base displacement) = do
       tell $ scoreboardSet ("imm", "memory") scale
       tell $ scoreboardOperation ("index", "memory") "*=" ("imm", "memory")
   whenJust base $ \r -> getScore r True >>= tell . scoreboardOperation ("index", "memory") "+="
-  when (displacement /= 0) $ tell $ "scoreboard players" <+> if displacement > 0 then "add" else "remove" <+> "index memeory" <+> intDec (abs displacement) <> "\n"
+  when (displacement /= 0) $ tell $ "scoreboard players" <+> (if displacement > 0 then "add" else "remove") <+> "index memory" <+> intDec (abs displacement) <> "\n"
 calculateAddress _ = error "invalid argument to calculateAddress"
 
 getScore :: Operand -> Bool -> Env (Builder, Builder)
