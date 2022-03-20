@@ -3,10 +3,11 @@ module Parser.Base where
 import Types
 
 import Text.Parsec hiding ((<|>), some, many, optional)
+import Data.ByteString (ByteString)
 import Control.Applicative
 import Data.Char
 
-type Parser = Parsec String ()
+type Parser = Parsec ByteString ()
 
 parseRegister :: Parser Operand
 parseRegister = many (char '+') *> choice (concat (zipWith (\i -> zipWith (\a b -> Register i a b <$ try (string b)) ["eax", "ebx", "ecx", "edx", "edi", "esi", "esp", "ebp"]) [1, 2, 4] [["al", "bl", "cl", "dl", "dil", "sil", "spl", "bpl"], ["ax", "bx", "cx", "dx", "di", "si", "sp", "bp"], ["eax", "ebx", "ecx", "edx", "edi", "esi", "esp", "ebp"]]))

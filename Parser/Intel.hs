@@ -112,4 +112,6 @@ parseLea = do
       | isRegister op1 && isMemory op2
       -> return $ Lea op1 op2
     _ -> fail "Invalid operands for lea"
-  
+
+parseInstruction :: Parser Instruction
+parseInstruction = choice [parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea]
