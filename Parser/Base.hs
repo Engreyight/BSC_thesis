@@ -9,7 +9,7 @@ import Data.Char
 type Parser = Parsec String ()
 
 parseRegister :: Parser Operand
-parseRegister = many (char '+') *> (Register 4 <$> foldr ((<|>) . try . string) empty ["eax", "ebx", "ecx", "edx", "edi", "esi", "r8d", "r9d"])
+parseRegister = many (char '+') *> choice (concat (zipWith (\i -> zipWith (\a b -> Register i a b <$ try (string b)) ["eax", "ebx", "ecx", "edx", "edi", "esi", "esp", "ebp"]) [1, 2, 4] [["al", "bl", "cl", "dl", "dil", "sil", "spl", "bpl"], ["ax", "bx", "cx", "dx", "di", "si", "sp", "bp"], ["eax", "ebx", "ecx", "edx", "edi", "esi", "esp", "ebp"]]))
 
 parseImmediate :: Parser Operand
 parseImmediate = Immediate <$> parseNumber
@@ -34,9 +34,6 @@ parseNumber = sign <*> (parseHex <|> parseBin <|> parseOct <|> parseDec)
 
     readBase :: Int -> String -> Int
     readBase n = foldl (\a c -> a * n + digitToInt c) 0
-
-eax :: Operand
-eax = Register 4 "eax"
 
 comma :: Parser ()
 comma = char ',' *> spaces
