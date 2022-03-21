@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
 module Assembler where
 
@@ -34,7 +35,6 @@ getScore (Register size realName name) _
     tell $ scoreboardOperation (stringUtf8 name, "registers") "=" (stringUtf8 realName, "registers")
     tell $ scoreboardOperation (stringUtf8 name, "registers") "%=" (intDec size <> "B", "constants")
     tell $ scoreboardOperation (stringUtf8 realName, "registers") "-=" (stringUtf8 name, "registers")
-    -- sign extend?
     return (stringUtf8 name, "registers")
 getScore m@(Memory size _ _ _ _) readonly = do
   calculateAddress m
@@ -50,6 +50,10 @@ cleanup (Register size realName name) | size /= 4 = do
       tell $ scoreboardOperation (stringUtf8 realName, "registers") "+=" (stringUtf8 name, "registers")
 cleanup (Memory size index scale base displacement) = tell $ "function assembler:library/zip" <> "\n"
 cleanup _ = return ()
+
+signExtend :: Operand -> Env ()
+signExtend op@(getSize -> Just size) | size /= 4 = let name = (case op of (Register _ _ name') -> name'; _ -> "mem"); bits = (2 ^ (size * 8)) in tell $ "execute if score" <+> stringUtf8 name <+> "registers matches" <+> intDec (bits `div` 2) <> ".. run scoreboard players remove" <+> stringUtf8 name <+> "registers" <+> intDec bits <> "\n"
+signExtend _ = fail "cannot sign extend operand"
 
 processInstruction :: Instruction -> Env ()
 processInstruction (Add op1 op2) = do
@@ -79,9 +83,10 @@ processInstruction (ExtIdiv op1) = do
   tell $ scoreboardOperation edx' "%=" sc1
   cleanup $ eax size
   cleanup $ edx size
-processInstruction (Mov op1 op2) = do
+processInstruction (Mov ext op1 op2) = do
   sc1 <- getScore op1 False
   sc2 <- getScore op2 True
+  when ext $ signExtend op2
   tell $ scoreboardOperation sc1 "=" sc2
   cleanup op1
 processInstruction (Lea op1 op2) = do

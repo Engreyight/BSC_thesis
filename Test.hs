@@ -10,6 +10,7 @@ import Assembler
 import Text.Parsec hiding ((<|>), some, many, optional)
 import Text.Parsec.ByteString (parseFromFile)
 import Control.Applicative
+import Control.Monad
 import Control.Monad.Trans.RWS.CPS
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder

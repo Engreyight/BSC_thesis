@@ -65,7 +65,27 @@ parseSub :: Parser Instruction
 parseSub = rmrmi "sub" Sub
 
 parseMov :: Parser Instruction
-parseMov = rmrmi "mov" Mov
+-- parseMov = rmrmi "mov" Mov
+parseMov = do
+  string "mov"
+  extra <- (Just True <$ string "sx") <|> (Just False <$ string "zx") <|> return Nothing
+  spaces
+  ops <- sepBy1 parseOperand comma
+  ops <- maybe (do 
+      size <- maybe (fail "ambigous operand sizes") return (foldr ((<|>) . getSize) Nothing ops)
+      traverse (assertSize size) ops
+    ) (\_ -> do
+      maybe (fail "invalid operand sizes for movsx/zx") (\_ -> return ops) $ foldM (\a -> mfilter (< a) . getSize) 5 ops
+    ) extra
+  case (ops, extra) of
+    ([op1, op2], Nothing)
+      | isRegister op1
+      || (isMemory op1 && not (isMemory op2))
+      -> return $ Mov False op1 op2
+    ([op1, op2], Just extend)
+      | isRegister op1 && not (isImmediate op2)
+      -> return $ Mov extend op1 op2
+    _ -> fail $ "Invalid operands for mov(sx/zx)"
 
 parseImul :: Parser Instruction
 parseImul = do

@@ -8,7 +8,7 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Sub Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Imul Operand Operand Operand  -- rm / r rmi / r rm i
   | ExtIdiv Operand  -- rm
-  | Mov Operand Operand  -- r rmi / m ri (rm rmi but only one m)
+  | Mov Bool Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Lea Operand Operand  -- r m
   deriving (Show)
 
