@@ -30,12 +30,12 @@ calculateAddress _ = error "invalid argument to calculateAddress"
 
 getScore :: Operand -> Bool -> Env (Builder, Builder)
 getScore (Register size realName name) _
-  | size == 4 = return (stringUtf8 name, "registers")
+  | size == 4 = return (name, "registers")
   | otherwise = do
-    tell $ scoreboardOperation (stringUtf8 name, "registers") "=" (stringUtf8 realName, "registers")
-    tell $ scoreboardOperation (stringUtf8 name, "registers") "%=" (intDec size <> "B", "constants")
-    tell $ scoreboardOperation (stringUtf8 realName, "registers") "-=" (stringUtf8 name, "registers")
-    return (stringUtf8 name, "registers")
+    tell $ scoreboardOperation (name, "registers") "=" (realName, "registers")
+    tell $ scoreboardOperation (name, "registers") "%=" (intDec size <> "B", "constants")
+    tell $ scoreboardOperation (realName, "registers") "-=" (name, "registers")
+    return (name, "registers")
 getScore m@(Memory size _ _ _ _) readonly = do
   calculateAddress m
   tell $ scoreboardSet ("size", "memory") size
@@ -46,13 +46,13 @@ getScore (Immediate i) _ = ("imm", "registers") <$ tell (scoreboardSet ("imm", "
 
 cleanup :: Operand -> Env ()
 cleanup (Register size realName name) | size /= 4 = do
-      tell $ scoreboardOperation (stringUtf8 name, "registers") "%=" (intDec size <> "B", "constants")
-      tell $ scoreboardOperation (stringUtf8 realName, "registers") "+=" (stringUtf8 name, "registers")
+      tell $ scoreboardOperation (name, "registers") "%=" (intDec size <> "B", "constants")
+      tell $ scoreboardOperation (realName, "registers") "+=" (name, "registers")
 cleanup (Memory size index scale base displacement) = tell $ "function assembler:library/zip" <> "\n"
 cleanup _ = return ()
 
 signExtend :: Operand -> Env ()
-signExtend op@(getSize -> Just size) | size /= 4 = let name = (case op of (Register _ _ name') -> name'; _ -> "mem"); bits = (2 ^ (size * 8)) in tell $ "execute if score" <+> stringUtf8 name <+> "registers matches" <+> intDec (bits `div` 2) <> ".. run scoreboard players remove" <+> stringUtf8 name <+> "registers" <+> intDec bits <> "\n"
+signExtend op@(getSize -> Just size) | size /= 4 = let name = (case op of (Register _ _ name') -> name'; _ -> "mem"); bits = (2 ^ (size * 8)) in tell $ "execute if score" <+> name <+> "registers matches" <+> intDec (bits `div` 2) <> ".. run scoreboard players remove" <+> name <+> "registers" <+> intDec bits <> "\n"
 signExtend _ = fail "cannot sign extend operand"
 
 processInstruction :: Instruction -> Env ()
@@ -70,7 +70,7 @@ processInstruction (Imul op1 op2 op3) = do
   sc1 <- getScore op1 False
   sc2 <- getScore op2 True
   sc3 <- getScore op3 True
-  when (op1 /= op2) $ tell $ scoreboardOperation sc1 "=" sc2
+  tell $ scoreboardOperation sc1 "=" sc2
   tell $ scoreboardOperation sc1 "*=" sc3
   cleanup op1
 processInstruction (ExtIdiv op1) = do

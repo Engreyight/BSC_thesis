@@ -1,9 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Types where
 
 import Control.Monad.Fail (MonadFail)
+import Data.ByteString.Builder (Builder, toLazyByteString)
 
---                                                 size     index      scale      base     disp
-data Operand = Register Int String String | Memory Int (Maybe Operand) Int (Maybe Operand) Int | Immediate Int deriving (Show, Eq)
+data Operand = Register Int Builder Builder | Memory Int (Maybe Operand) Int (Maybe Operand) Int | Immediate Int deriving (Show)
 data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Sub Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Imul Operand Operand Operand  -- rm / r rmi / r rm i
@@ -11,6 +13,9 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Mov Bool Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Lea Operand Operand  -- r m
   deriving (Show)
+
+instance Show Builder where
+    show = show . toLazyByteString
 
 isRegister :: Operand -> Bool
 isRegister (Register _ _ _) = True
