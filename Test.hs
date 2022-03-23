@@ -4,7 +4,6 @@
 import Types
 import Parser.Base
 import Parser.Intel
-import Builder
 import Assembler
 
 import Text.Parsec hiding ((<|>), some, many, optional)
