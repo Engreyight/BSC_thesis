@@ -103,6 +103,6 @@ processInstruction (Mov ext op1 op2) = do
 processInstruction (Lea op1 op2) = do
   sc1 <- getScore op1 False
   calculateAddress op2
-  tellNL $ "scoreboard players operation" <+> sc1 <+> "= mem registers"
+  tellNL $ "scoreboard players operation" <+> sc1 <+> "= index memory"
   cleanup op1
   
