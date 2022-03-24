@@ -14,7 +14,7 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Lea Operand Operand  -- r m
   | Label String
   | Ret
-  | Call Builder
+  | Call String
   deriving (Show)
 
 instance Show Builder where

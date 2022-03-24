@@ -7,7 +7,6 @@ import Text.Parsec hiding ((<|>), some, many, optional)
 import Control.Applicative
 import Control.Monad
 import Data.Char
-import Data.ByteString.Builder (stringUtf8)
 import Parser.Permutations
 
 parseOperand :: Parser Operand
@@ -71,7 +70,6 @@ parseSub :: Parser Instruction
 parseSub = rmrmi "sub" Sub
 
 parseMov :: Parser Instruction
--- parseMov = rmrmi "mov" Mov
 parseMov = do
   string "mov"
   extra <- option Nothing $ (Just True <$ string "sx") <|> (Just False <$ string "zx")
@@ -148,7 +146,7 @@ parseCall :: Parser Instruction
 parseCall = do
   string "call"
   some ws
-  Call . stringUtf8 <$> parseLabelName
+  Call <$> parseLabelName
 
 parseInstruction :: Parser Instruction
 parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, parseCall] <* many ws
