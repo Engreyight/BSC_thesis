@@ -38,5 +38,8 @@ parseNumber = sign <*> (parseHex <|> parseBin <|> parseOct <|> parseDec)
     readBase :: Int -> String -> Int
     readBase n = foldl (\a c -> a * n + digitToInt c) 0
 
-comma :: Parser ()
-comma = char ',' *> spaces
+ws :: Parser Char
+ws = satisfy (\c -> isSpace c && not (c `elem` ['\r', '\n']))
+
+comma :: Parser Char
+comma = char ',' <* many ws

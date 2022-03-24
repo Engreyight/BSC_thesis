@@ -15,12 +15,13 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Builder
 import System.IO
 import System.Environment
+import Data.List
 
 test :: Parser Instruction -> ByteString -> IO ()
 test p input = either (fail . show) (\instr -> hPutBuilder stdout $ snd $ evalRWS (processInstruction instr) () ()) $ parse (p <* eof) "" input
 
 main = do
   (fname : _) <- getArgs
-  instr <- either (fail . show) id <$> parseFromFile (sepEndBy1 parseInstruction endOfLine <* eof) fname
+  instr <- either (fail . show) id <$> parseFromFile (sepEndBy1 parseInstruction (endOfLine <* spaces) <* eof) fname
   let (_, res) = evalRWS (traverse processInstruction instr) () ()
-  withFile (fname ++ ".mcfunction") WriteMode $ \h -> hPutBuilder h res
+  withFile (dropWhileEnd (/= '.') fname ++ "mcfunction") WriteMode $ \h -> hPutBuilder h res

@@ -6,15 +6,17 @@ import Parser.Base
 import Text.Parsec hiding ((<|>), some, many, optional)
 import Control.Applicative
 import Control.Monad
+import Data.Char
 import Parser.Permutations
 
 parseOperand :: Parser Operand
-parseOperand = parseRegister <|> parseMemory <|> parseImmediate
+parseOperand = (parseRegister <|> try parseMemory <|> parseImmediate) <* many ws
 
 parseMemory :: Parser Operand
 parseMemory = do
-  size <- (4 <$ string "DWORD PTR ") <|> (2 <$ string "WORD PTR ") <|> (1 <$ string "BYTE PTR ") <|> return 0
-  try (parseNumber >>= \a -> bracesPart (pure (\b (c, d) -> Memory size c d b a))) <|> bracesPart ((\a b (c, d) -> Memory size c d b a) <$> dispPerm)
+  size <- option 0 $ ((4 <$ string "DWORD") <|> (2 <$ string "WORD") <|> (1 <$ string "BYTE")) <* some ws <* string "PTR" <* some ws
+  extraDisp <- option 0 parseNumber
+  bracesNonEmpty $ intercalateEffect (lookAhead $ oneOf "+-") $ (\a b (c, d) -> Memory size c d b (a + extraDisp)) <$> dispPerm <*> basePerm <*> indexScalePerm
   where
     dispPerm :: Permutation Parser Int
     dispPerm = toPermutationWithDefault 0 (try (parseNumber <* notFollowedBy (char '*')))
@@ -41,13 +43,11 @@ parseMemory = do
       char ']'
       return res
 
-    bracesPart :: Permutation Parser (Maybe Operand -> (Maybe Operand, Int) -> Operand) -> Parser Operand
-    bracesPart starterPerm = bracesNonEmpty $ intercalateEffect (lookAhead $ oneOf "+-") $ starterPerm <*> basePerm <*> indexScalePerm
 
 rmrmi :: String -> (Operand -> Operand -> Instruction) -> Parser Instruction
 rmrmi str instr = do
   string str
-  spaces
+  some ws
   ops <- sepBy1 parseOperand comma
   size <- maybe (fail "ambigous operand sizes") return (foldr ((<|>) . getSize) Nothing ops)
   ops <- traverse (assertSize size) ops
@@ -68,8 +68,8 @@ parseMov :: Parser Instruction
 -- parseMov = rmrmi "mov" Mov
 parseMov = do
   string "mov"
-  extra <- (Just True <$ string "sx") <|> (Just False <$ string "zx") <|> return Nothing
-  spaces
+  extra <- option Nothing $ (Just True <$ string "sx") <|> (Just False <$ string "zx")
+  some ws
   ops <- sepBy1 parseOperand comma
   ops <- maybe (do 
       size <- maybe (fail "ambigous operand sizes") return (foldr ((<|>) . getSize) Nothing ops)
@@ -90,7 +90,7 @@ parseMov = do
 parseImul :: Parser Instruction
 parseImul = do
   string "imul"
-  spaces
+  some ws
   ops <- sepBy1 parseOperand comma
   size <- maybe (fail "ambigous operand sizes") return (foldr ((<|>) . getSize) Nothing ops)
   ops <- traverse (assertSize size) ops
@@ -111,9 +111,11 @@ parseImul = do
 parseExtIdiv :: Parser Instruction
 parseExtIdiv = do
   size <- (4 <$ try (string "cdq")) <|> (2 <$ try (string "cwd")) <|> (1 <$ try (string "cbw"))
+  many ws
   endOfLine
+  many ws
   string "idiv"
-  spaces
+  some ws
   ops <- sepBy1 parseOperand comma
   ops <- traverse (assertSize size) ops
   case ops of
@@ -125,7 +127,7 @@ parseExtIdiv = do
 parseLea :: Parser Instruction
 parseLea = do
   string "lea"
-  spaces
+  some ws
   ops <- sepBy1 parseOperand comma
   case ops of
     [op1, op2]
@@ -134,4 +136,4 @@ parseLea = do
     _ -> fail "Invalid operands for lea"
 
 parseInstruction :: Parser Instruction
-parseInstruction = choice [parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea]
+parseInstruction = choice [parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea] <* many ws
