@@ -7,6 +7,7 @@ import Text.Parsec hiding ((<|>), some, many, optional)
 import Control.Applicative
 import Control.Monad
 import Data.Char
+import Data.ByteString.Builder (stringUtf8)
 import Parser.Permutations
 
 parseOperand :: Parser Operand
@@ -43,8 +44,11 @@ parseMemory = do
       char ']'
       return res
 
+parseLabelName :: Parser String
+parseLabelName = some (satisfy (\c -> isAlphaNum c && isAscii c || c `elem` ['_', '.']))
+
 parseLabel :: Parser Instruction
-parseLabel = Label <$> some (satisfy (\c -> isAlphaNum c && isAscii c)) <* char ':' <* many ws
+parseLabel = Label <$> parseLabelName <* char ':' <* many ws
 
 rmrmi :: String -> (Operand -> Operand -> Instruction) -> Parser Instruction
 rmrmi str instr = do
@@ -137,5 +141,14 @@ parseLea = do
       -> return $ Lea op1 op2
     _ -> fail "Invalid operands for lea"
 
+parseRet :: Parser Instruction
+parseRet = Ret <$ string "ret"
+
+parseCall :: Parser Instruction
+parseCall = do
+  string "call"
+  some ws
+  Call . stringUtf8 <$> parseLabelName
+
 parseInstruction :: Parser Instruction
-parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea] <* many ws
+parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, parseCall] <* many ws

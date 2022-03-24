@@ -13,6 +13,7 @@ splitFunctions :: [Instruction] -> [(String, [Instruction])]
 splitFunctions instr = let (_, acc, res) = foldr f (0, [], []) instr in if null acc then res else ("main", acc) : res
   where
     f (Label new) (n, acc, res) = (n, [], (new, acc) : res)
+    f Ret (n, _, res) = (n, [], res)
     f cur (n, acc, res) = (n, cur : acc, res)
 
 type Env = RWS () Builder ()
@@ -111,4 +112,5 @@ processInstruction (Lea op1 op2) = do
   calculateAddress op2
   tellNL $ "scoreboard players operation" <+> sc1 <+> "= index memory"
   cleanup op1
+processInstruction (Call label) = tellNL $ "function assembler:" <> label
 processInstruction _ = error "Invalid instruction"
