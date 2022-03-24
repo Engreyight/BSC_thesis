@@ -14,6 +14,7 @@ splitFunctions instr = let (_, acc, res) = foldr f (0, [], []) instr in ("main",
   where
     f (Label new) (n, acc, res) = (n, [Call new], (new, acc) : res)
     f Ret (n, _, res) = (n, [], res)
+    f j@(Jmp _) (n, _, res) = (n, [j], res)
     f cur (n, acc, res) = (n, cur : acc, res)
 
 type Env = RWS () Builder ()
@@ -113,4 +114,5 @@ processInstruction (Lea op1 op2) = do
   tellNL $ "scoreboard players operation" <+> sc1 <+> "= index memory"
   cleanup op1
 processInstruction (Call label) = tellNL $ "function assembler:" <> stringUtf8 label
+processInstruction (Jmp label) = tellNL $ "function assembler:" <> stringUtf8 label
 processInstruction _ = error "Invalid instruction"

@@ -148,5 +148,11 @@ parseCall = do
   some ws
   Call <$> parseLabelName
 
+parseJmp :: Parser Instruction
+parseJmp = do
+  string "jmp"
+  some ws
+  Jmp <$> parseLabelName
+
 parseInstruction :: Parser Instruction
-parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, parseCall] <* many ws
+parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, parseCall, parseJmp] <* many ws
