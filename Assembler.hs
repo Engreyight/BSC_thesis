@@ -35,12 +35,12 @@ calculateAddress (Memory size index scale base displacement) = do
 calculateAddress _ = error "invalid argument to calculateAddress"
 
 getScore :: Operand -> Bool -> Env Builder
-getScore (Register size realName name) _
+getScore (Register size realName name) readonly
   | size == 4 = return $ name <+> "registers"
   | otherwise = do
     tellNL $ "scoreboard players operation" <+> name <+> "registers =" <+> realName <+> "registers"
     tellNL $ "scoreboard players operation" <+> name <+> "registers %=" <+> intDec size <> "B constants"
-    tellNL $ "scoreboard players operation" <+> realName <+> "registers -=" <+> name <+> "registers"
+    when (not readonly) $ tellNL $ "scoreboard players operation" <+> realName <+> "registers -=" <+> name <+> "registers"
     return $ name <+> "registers"
 getScore m@(Memory size _ _ _ _) readonly = do
   calculateAddress m
