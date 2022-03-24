@@ -43,6 +43,8 @@ parseMemory = do
       char ']'
       return res
 
+parseLabel :: Parser Instruction
+parseLabel = Label <$> some (satisfy (\c -> isAlphaNum c && isAscii c)) <* char ':' <* many ws
 
 rmrmi :: String -> (Operand -> Operand -> Instruction) -> Parser Instruction
 rmrmi str instr = do
@@ -136,4 +138,4 @@ parseLea = do
     _ -> fail "Invalid operands for lea"
 
 parseInstruction :: Parser Instruction
-parseInstruction = choice [parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea] <* many ws
+parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea] <* many ws

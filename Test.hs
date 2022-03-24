@@ -22,6 +22,5 @@ test p input = either (fail . show) (\instr -> hPutBuilder stdout $ snd $ evalRW
 
 main = do
   (fname : _) <- getArgs
-  instr <- either (fail . show) id <$> parseFromFile (sepEndBy1 parseInstruction (endOfLine <* spaces) <* eof) fname
-  let (_, res) = evalRWS (traverse processInstruction instr) () ()
-  withFile (dropWhileEnd (/= '.') fname ++ "mcfunction") WriteMode $ \h -> hPutBuilder h res
+  instr <- either (fail . show) splitFunctions <$> parseFromFile (sepEndBy1 parseInstruction (endOfLine <* spaces) <* eof) fname
+  mapM_ (\(label, list) -> withFile (label ++ ".mcfunction") WriteMode $ \h -> hPutBuilder h (snd (evalRWS (traverse processInstruction list) () ()))) instr

@@ -12,6 +12,7 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | ExtIdiv Operand  -- rm
   | Mov Bool Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Lea Operand Operand  -- r m
+  | Label String
   deriving (Show)
 
 instance Show Builder where
