@@ -181,5 +181,34 @@ parseJcc = do
   label <- parseLabelName
   return $ Jcc label "" (condal cond)
 
+parseCmovcc :: Parser Instruction
+parseCmovcc = do
+  condal <- parseConditional
+  nextLine
+  string "cmov"
+  cond <- parseCondition
+  some ws
+  ops <- sepBy1 parseOperand comma
+  size <- maybe (fail "ambigous operand sizes") return (foldr ((<|>) . getSize) Nothing ops)
+  when (size == 1) $ fail "opernad sizes are too small"
+  ops <- traverse (assertSize size) ops
+  case ops of
+    [op1, op2]
+      | isRegister op1 && not (isImmediate op2)
+      -> return $ Cmovcc op1 op2 (condal cond)
+    _ -> fail $ "Invalid operands for cmovcc"
+
+parseSetcc :: Parser Instruction
+parseSetcc = do
+  condal <- parseConditional
+  nextLine
+  string "set"
+  cond <- parseCondition
+  some ws
+  op <- parseOperand
+  op <- assertSize 1 op
+  when (isImmediate op) $ fail "invalid operand for setcc"
+  return $ Setcc op (condal cond)
+
 parseInstruction :: Parser Instruction
-parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, try parseCall, parseJmp, parseJcc]
+parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, try parseCall, parseJmp, try parseJcc, try parseCmovcc, parseSetcc]

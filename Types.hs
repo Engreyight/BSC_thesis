@@ -17,6 +17,8 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Call String
   | Jmp String
   | Jcc String String Conditional
+  | Cmovcc Operand Operand Conditional  -- r16/32 rm16/32
+  | Setcc Operand Conditional  -- rm8
   deriving (Show)
 
 data Conditional = Conditional Operand Operand Comparison deriving Show  -- r rmi / m ri (rm rmi but only one m)

@@ -81,9 +81,13 @@ testDisjoint sc1 sc2 = do
   tellNL $ "scoreboard players operation op2 variables =" <+> sc2
   tellNL $ "funtion assembler:library/disjoint"
 
--- TODO: do the checks and moving and prettifying when csetc/cmovcc is implemented
 getConditional :: Conditional -> Env [Builder]
-getConditional (Conditional op1 op2 comp) = join $ liftM2 (getComparison comp) (getScore op1 True) (getScore op2 True)
+getConditional (Conditional op1 op2 comp) = do
+  sc1 <- getScore op1 True
+  sc1 <- if (isMemory op1) then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc1
+  sc2 <- getScore op2 True
+  sc2 <- if (isMemory op2) then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc2
+  getComparison comp sc1 sc2
 
 getComparison :: Comparison -> Builder -> Builder -> Env [Builder]
 getComparison (Cmp E) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "=" <+> sc2]
@@ -140,14 +144,26 @@ processInstruction (Lea op1 op2) = do
   cleanup op1
 processInstruction (Call label) = tellNL $ "function assembler:" <> stringUtf8 label
 processInstruction (Jmp label) = tellNL $ "function assembler:" <> stringUtf8 label
-processInstruction (Jcc trueLabel falseLabel cond) | not (null falseLabel) = do
+processInstruction (Jcc trueLabel falseLabel cond) = do
   conds <- getConditional cond
   tellNL $ "scoreboard players set condition variables 0"
   tellNL $ "data modify storage assembler:memory conditions prepend value 0"
-  mapM_ (tellNL . (<+> "store result storage assembler:memory conditions[0] int 1 run scoreboard players set condition variables 1")) conds
+  traverse (tellNL . (<+> "store result storage assembler:memory conditions[0] int 1 run scoreboard players set condition variables 1")) conds
   tellNL $ "execute if score condition variables matches 1 run function assembler:" <> stringUtf8 trueLabel
   tellNL $ "execute store result score condition variables run data get storage assembler:memory conditions[0]"
   tellNL $ "data remove storage assembler:memory conditions[0]"
   tellNL $ "execute if score condition variables matches 0 run function assembler:" <> stringUtf8 falseLabel
-  
-processInstruction _ = error "Invalid instruction"
+processInstruction (Cmovcc op1 op2 cond) = do
+  conds <- getConditional cond
+  sc1 <- getScore op1 False
+  sc2 <- getScore op2 True
+  traverse (tellNL . (<+> "run scoreboard players operation" <+> sc1 <+> "=" <+> sc2)) conds
+  cleanup op1
+processInstruction (Setcc op cond) = do
+  conds <- getConditional cond
+  sc <- getScore op False
+  tellNL $ "scoreboard players set" <+> sc <+> "0"
+  traverse (tellNL . (<+> "run scoreboard players set" <+> sc <+> "1")) conds
+  cleanup op
+processInstruction Ret = error "Invalid instruction"
+processInstruction (Label _) = error "Invalid instruction"
