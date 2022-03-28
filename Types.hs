@@ -16,7 +16,12 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Ret
   | Call String
   | Jmp String
+  | Jcc String String Conditional
   deriving (Show)
+
+data Conditional = Conditional Operand Operand Comparison deriving Show  -- r rmi / m ri (rm rmi but only one m)
+data Comparison = Cmp Condition | Test Condition deriving Show
+data Condition = E | NE | G | GE | L | LE deriving Show
 
 instance Show Builder where
     show = show . toLazyByteString

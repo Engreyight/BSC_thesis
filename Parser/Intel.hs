@@ -44,7 +44,9 @@ parseMemory = do
       return res
 
 parseLabelName :: Parser String
-parseLabelName = some (satisfy (\c -> isAlphaNum c && isAscii c || c `elem` ['_', '.']))
+parseLabelName = do
+  name@(x : xs) <- some (satisfy (\c -> isAlphaNum c && isAscii c || c `elem` ['_', '.']))
+  if (isLower x || isDigit x) && all (not . isUpper) xs then return name else fail "label name is not a valid function name"
 
 parseLabel :: Parser Instruction
 parseLabel = Label <$> parseLabelName <* char ':' <* many ws
@@ -115,9 +117,7 @@ parseImul = do
 parseExtIdiv :: Parser Instruction
 parseExtIdiv = do
   size <- (4 <$ try (string "cdq")) <|> (2 <$ try (string "cwd")) <|> (1 <$ try (string "cbw"))
-  many ws
-  endOfLine
-  many ws
+  nextLine
   string "idiv"
   some ws
   ops <- sepBy1 parseOperand comma
@@ -154,5 +154,32 @@ parseJmp = do
   some ws
   Jmp <$> parseLabelName
 
+parseConditional :: Parser (Condition -> Conditional)
+parseConditional = do
+  mode <- (Cmp <$ string "cmp") <|> (Test <$ string "test")
+  some ws
+  ops <- sepBy1 parseOperand comma
+  size <- maybe (fail "ambigous operand sizes") return (foldr ((<|>) . getSize) Nothing ops)
+  ops <- traverse (assertSize size) ops
+  case ops of
+    [op1, op2]
+      | isRegister op1
+      || (isMemory op1 && not (isMemory op2))
+      -> return $ Conditional op1 op2 . mode
+    _ -> fail $ "Invalid operands for cmp/test"
+
+parseCondition :: Parser Condition
+parseCondition = choice $ zipWith (\a b -> a <$ foldr ((<|>) . try . (<* lookAhead ws) . string) empty b) [E, NE, G, GE, L, LE] [["e", "z"], ["ne", "nz"], ["g", "nle"], ["ge", "nl"], ["l", "nge"], ["le", "ng"]]
+
+parseJcc :: Parser Instruction
+parseJcc = do
+  condal <- parseConditional
+  nextLine
+  char 'j'
+  cond <- parseCondition
+  some ws
+  label <- parseLabelName
+  return $ Jcc label "" (condal cond)
+
 parseInstruction :: Parser Instruction
-parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, parseCall, parseJmp] <* many ws
+parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, try parseCall, parseJmp, parseJcc]

@@ -15,6 +15,7 @@ splitFunctions instr = let (_, acc, res) = foldr f (0, [], []) instr in ("main",
     f (Label new) (n, acc, res) = (n, [Call new], (new, acc) : res)
     f Ret (n, _, res) = (n, [], res)
     f j@(Jmp _) (n, _, res) = (n, [j], res)
+    f (Jcc trueLabel _ cond) (n, acc, res) = let falseLabel = "tmp_" ++ show n in (n + 1, [Jcc trueLabel falseLabel cond], (falseLabel, acc) : res)
     f cur (n, acc, res) = (n, cur : acc, res)
 
 type Env = RWS () Builder ()
@@ -74,6 +75,30 @@ signExtend op@(getSize -> Just size) | size /= 4 = let
   in tellNL $ "execute if score" <+> name <+> "registers matches" <+> intDec (bits `div` 2) <> ".. run scoreboard players remove" <+> name <+> "registers" <+> intDec bits
 signExtend _ = fail "cannot sign extend operand"
 
+testDisjoint :: Builder -> Builder -> Env ()
+testDisjoint sc1 sc2 = do
+  tellNL $ "scoreboard players operation op1 variables =" <+> sc1
+  tellNL $ "scoreboard players operation op2 variables =" <+> sc2
+  tellNL $ "funtion assembler:library/disjoint"
+
+-- TODO: do the checks and moving and prettifying when csetc/cmovcc is implemented
+getConditional :: Conditional -> Env [Builder]
+getConditional (Conditional op1 op2 comp) = join $ liftM2 (getComparison comp) (getScore op1 True) (getScore op2 True)
+
+getComparison :: Comparison -> Builder -> Builder -> Env [Builder]
+getComparison (Cmp E) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "=" <+> sc2]
+getComparison (Cmp NE) sc1 sc2 = return $ ["execute unless score" <+> sc1 <+> "=" <+> sc2]
+getComparison (Cmp G) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> ">" <+> sc2]
+getComparison (Cmp GE) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> ">=" <+> sc2]
+getComparison (Cmp L) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "<" <+> sc2]
+getComparison (Cmp LE) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "<=" <+> sc2]
+getComparison (Test E) sc1 sc2 = ["execute if score disjoint variables matches 1"] <$ testDisjoint sc1 sc2
+getComparison (Test NE) sc1 sc2 = ["execute if score disjoint variables matches 0"] <$ testDisjoint sc1 sc2
+getComparison (Test G) sc1 sc2 = ["execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches 0..", "execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches 0.."] <$ testDisjoint sc1 sc2
+getComparison (Test GE) sc1 sc2 = return ["execute if score" <+> sc1 <+> "matches 0..", "execute if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches 0.."]
+getComparison (Test L) sc1 sc2 = return ["execute if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches ..-1"]
+getComparison (Test LE) sc1 sc2 = ["execute if score disjoint variables matches 1", "execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches ..-1"] <$ testDisjoint sc1 sc2
+
 processInstruction :: Instruction -> Env ()
 processInstruction (Add op1 op2) = do
   sc1 <- getScore op1 False
@@ -115,4 +140,14 @@ processInstruction (Lea op1 op2) = do
   cleanup op1
 processInstruction (Call label) = tellNL $ "function assembler:" <> stringUtf8 label
 processInstruction (Jmp label) = tellNL $ "function assembler:" <> stringUtf8 label
+processInstruction (Jcc trueLabel falseLabel cond) | not (null falseLabel) = do
+  conds <- getConditional cond
+  tellNL $ "scoreboard players set condition variables 0"
+  tellNL $ "data modify storage assembler:memory conditions prepend value 0"
+  mapM_ (tellNL . (<+> "store result storage assembler:memory conditions[0] int 1 run scoreboard players set condition variables 1")) conds
+  tellNL $ "execute if score condition variables matches 1 run function assembler:" <> stringUtf8 trueLabel
+  tellNL $ "execute store result score condition variables run data get storage assembler:memory conditions[0]"
+  tellNL $ "data remove storage assembler:memory conditions[0]"
+  tellNL $ "execute if score condition variables matches 0 run function assembler:" <> stringUtf8 falseLabel
+  
 processInstruction _ = error "Invalid instruction"

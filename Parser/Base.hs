@@ -43,3 +43,6 @@ ws = satisfy (\c -> isSpace c && not (c `elem` ['\r', '\n']))
 
 comma :: Parser Char
 comma = char ',' <* many ws
+
+nextLine :: Parser Char
+nextLine = many ws *> endOfLine <* many ws
