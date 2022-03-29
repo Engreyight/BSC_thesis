@@ -30,7 +30,7 @@ parseNumber = sign <*> (parseHex <|> parseBin <|> parseOct <|> parseDec)
     parseBin = try (char '0' *> oneOf "bB") *> (readBase 2 <$> some (oneOf "01"))
 
     parseOct :: Parser Int
-    parseOct = char '0' *> (readBase 8 <$> some octDigit)
+    parseOct = try (char '0' *> (readBase 8 <$> some octDigit))
 
     parseDec :: Parser Int
     parseDec = read <$> some digit
@@ -45,4 +45,4 @@ comma :: Parser Char
 comma = char ',' <* many ws
 
 nextLine :: Parser Char
-nextLine = many ws *> endOfLine <* many ws
+nextLine = many ws *> endOfLine <* spaces

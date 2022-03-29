@@ -163,9 +163,10 @@ processInstruction (Cmovcc op1 op2 cond) = do
   cleanup op1
 processInstruction (Setcc op cond) = do
   conds <- getConditional cond
+  tellNL $ "scoreboard players set bool variables 0"
+  traverse (tellNL . (<+> "run scoreboard players set bool variables 1")) conds
   sc <- getScore op False
-  tellNL $ "scoreboard players set" <+> sc <+> "0"
-  traverse (tellNL . (<+> "run scoreboard players set" <+> sc <+> "1")) conds
+  tellNL $ "scoreboard players operation" <+> sc <+> "= bool variables"
   cleanup op
 processInstruction Ret = tellNL $ "scoreboard players add esp registers 4"
 processInstruction (Push op) = do
