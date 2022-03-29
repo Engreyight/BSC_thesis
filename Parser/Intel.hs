@@ -206,9 +206,33 @@ parseSetcc = do
   cond <- parseCondition
   some ws
   op <- parseOperand
-  op <- assertSize 1 op
   when (isImmediate op) $ fail "invalid operand for setcc"
+  op <- assertSize 1 op
   return $ Setcc op (condal cond)
 
+parsePush :: Parser Instruction
+parsePush = do
+  string "push"
+  some ws
+  op <- parseOperand
+  let size = maybe 4 id $ getSize op
+  when (size == 1) $ fail "invalid operand size for push"
+  op <- assertSize size op
+  return $ Push op
+
+parsePop :: Parser Instruction
+parsePop = do
+  string "pop"
+  some ws
+  op <- parseOperand
+  when (isImmediate op) $ fail "invalid operand for pop"
+  let size = maybe 4 id $ getSize op
+  when (size == 1) $ fail "invalid operand size for pop"
+  op <- assertSize size op
+  return $ Pop op
+
+parseLeave :: Parser Instruction
+parseLeave = Leave <$ string "leave"
+
 parseInstruction :: Parser Instruction
-parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, parseLea, parseRet, try parseCall, parseJmp, try parseJcc, try parseCmovcc, parseSetcc]
+parseInstruction = choice [try parseLabel, parseAdd, parseSub, parseMov, parseImul, parseExtIdiv, try parseLea, parseRet, try parseCall, parseJmp, try parseJcc, try parseCmovcc, parseSetcc, try parsePush, parsePop, parseLeave]

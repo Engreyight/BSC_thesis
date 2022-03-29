@@ -84,9 +84,9 @@ testDisjoint sc1 sc2 = do
 getConditional :: Conditional -> Env [Builder]
 getConditional (Conditional op1 op2 comp) = do
   sc1 <- getScore op1 True
-  sc1 <- if (isMemory op1) then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc1
+  sc1 <- if isMemory op1 then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc1
   sc2 <- getScore op2 True
-  sc2 <- if (isMemory op2) then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc2
+  sc2 <- if isMemory op2 then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc2
   getComparison comp sc1 sc2
 
 getComparison :: Comparison -> Builder -> Builder -> Env [Builder]
@@ -168,4 +168,23 @@ processInstruction (Setcc op cond) = do
   traverse (tellNL . (<+> "run scoreboard players set" <+> sc <+> "1")) conds
   cleanup op
 processInstruction Ret = tellNL $ "scoreboard players add esp registers 4"
+processInstruction (Push op) = do
+  sc2 <- getScore op True
+  sc2 <- if isMemory op then "mem2 registers" <$ tellNL "scoreboard players operation mem2 registers = mem registers" else return sc2
+  let size = maybe 4 id (getSize op)
+  sc1 <- getScore (espMinus size) False
+  tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
+  cleanup (espMinus size)
+  tellNL $ "scoreboard players remove esp registers" <+> intDec size
+processInstruction (Pop op) = do
+  let size = maybe 4 id (getSize op)
+  tellNL $ "scoreboard players add esp registers" <+> intDec size
+  sc2 <- getScore (espMinus size) True
+  sc2 <- if isMemory op then "mem2 registers" <$ tellNL "scoreboard players operation mem2 registers = mem registers" else return sc2
+  sc1 <- getScore op True
+  tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
+  cleanup op
+processInstruction Leave = do
+  tellNL $ "scoreboard players operation esp registers = ebp registers"
+  processInstruction (Pop (Register 4 "ebp" "ebp"))
 processInstruction (Label _) = error "Invalid instruction"

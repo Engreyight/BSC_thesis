@@ -19,6 +19,9 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Jcc String String Conditional
   | Cmovcc Operand Operand Conditional  -- r16/32 rm16/32
   | Setcc Operand Conditional  -- rm8
+  | Push Operand  -- rmi16/32
+  | Pop Operand  -- rm16/32
+  | Leave
   deriving (Show)
 
 data Conditional = Conditional Operand Operand Comparison deriving Show  -- r rmi / m ri (rm rmi but only one m)
@@ -62,3 +65,6 @@ edx :: Int -> Operand
 edx 1 = Register 1 "edx" "dl"
 edx 2 = Register 2 "edx" "dx"
 edx 4 = Register 4 "edx" "edx"
+
+espMinus :: Int -> Operand
+espMinus n = Memory n Nothing 1 (Just (Register 4 "esp" "esp")) (-n)
