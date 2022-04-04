@@ -1,4 +1,3 @@
 *.o
 *.hi
 *.txt
-Parser/Permutations.hs
