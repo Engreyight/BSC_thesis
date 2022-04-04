@@ -7,7 +7,7 @@ import Text.Parsec hiding ((<|>), some, many, optional)
 import Control.Applicative
 import Control.Monad
 import Data.Char
-import Parser.Permutations
+import Control.Applicative.Permutations
 
 parseOperand :: Parser Operand
 parseOperand = (parseRegister <|> try parseMemory <|> parseImmediate) <* many ws

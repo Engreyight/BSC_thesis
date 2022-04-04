@@ -73,7 +73,7 @@ signExtend op@(getSize -> Just size) | size /= 4 = let
       _ -> "mem"
     bits = (2 ^ (size * 8))
   in tellNL $ "execute if score" <+> name <+> "registers matches" <+> intDec (bits `div` 2) <> ".. run scoreboard players remove" <+> name <+> "registers" <+> intDec bits
-signExtend _ = fail "cannot sign extend operand"
+signExtend _ = error "cannot sign extend operand"
 
 testDisjoint :: Builder -> Builder -> Env ()
 testDisjoint sc1 sc2 = do
