@@ -1,0 +1,4 @@
+mov eax, 19
+mov dl, 0x56
+mov DWORD PTR [12], 0x13572468
+mov WORD PTR [21], 0xabcd

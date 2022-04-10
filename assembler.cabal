@@ -2,9 +2,7 @@ cabal-version:      2.4
 name:               assembler
 version:            0.1.0.0
 
-executable assembler
-    main-is:          Test.hs
-
+common common
     other-modules:
         Assembler,
         Parser.Base,
@@ -14,9 +12,40 @@ executable assembler
     build-depends:
         base ^>=4.14.3.0,
         bytestring ^>=0.10.12.0,
+        directory ^>= 1.3.6.0,
+        filepath ^>= 1.4.2.1
+        optparse-applicative ^>= 0.17.0.0,
         parsec ^>=3.1.14.0,
         parser-combinators ^>= 1.3.0,
-        transformers ^>=0.5.6.2
+        transformers ^>=0.5.6.2,
+    
+    default-language: Haskell2010
+
+executable assembler
+    import: common
+    
+    main-is: Main.hs
 
     hs-source-dirs: src
-    default-language: Haskell2010
+
+executable testenv
+    import: common
+    
+    other-modules:
+        Main,
+        HUnit,
+        Parser.NBT,
+        QuickCheck
+    
+    build-depends:
+        binary ^>= 0.8.8.0,
+        containers ^>= 0.6.5.1,
+        HUnit ^>= 1.6.2.0,
+        network ^>= 3.1.2.7,
+        QuickCheck ^>= 2.14.2,
+        zlib ^>= 0.6.2.3
+    
+    main-is: Test.hs
+    ghc-options: -main-is Test
+
+    hs-source-dirs: test, src

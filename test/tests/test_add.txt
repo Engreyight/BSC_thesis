@@ -1,0 +1,5 @@
+mov eax, 0xab
+mov edx, 0xcd
+add eax, edx
+mov DWORD PTR [12], 0x66
+add [12], edx

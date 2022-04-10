@@ -6,19 +6,19 @@ module Assembler where
 import Types
 
 import Data.ByteString.Builder
-import Control.Monad.Trans.RWS.CPS
+import Control.Monad.Trans.Writer.CPS
 import Control.Monad
 
-splitFunctions :: [Instruction] -> [(String, [Instruction])]
-splitFunctions instr = let (_, acc, res) = foldr f (0, [], []) instr in ("main", acc) : res
+splitFunctions :: String -> [Instruction] -> [(String, [Instruction])]
+splitFunctions mainName instr = let (_, acc, res) = foldr f (0, [], []) instr in (mainName, acc) : res
   where
     f (Label new) (n, acc, res) = (n, [Jmp new], (new, acc) : res)
     f Ret (n, _, res) = (n, [Ret], res)
     f j@(Jmp _) (n, _, res) = (n, [j], res)
-    f (Jcc trueLabel _ cond) (n, acc, res) = let falseLabel = "tmp_" ++ show n in (n + 1, [Jcc trueLabel falseLabel cond], (falseLabel, acc) : res)
+    f (Jcc trueLabel _ cond) (n, acc, res) = let falseLabel = mainName ++ "_tmp_" ++ show n in (n + 1, [Jcc trueLabel falseLabel cond], (falseLabel, acc) : res)
     f cur (n, acc, res) = (n, cur : acc, res)
 
-type Env = RWS () Builder ()
+type Env = Writer Builder
 
 infixr 6 <+>
 (<+>) :: Builder -> Builder -> Builder
@@ -44,13 +44,15 @@ calculateAddress (Memory size index scale base displacement) = do
 calculateAddress _ = error "invalid argument to calculateAddress"
 
 getScore :: Operand -> Bool -> Env Builder
-getScore (Register size realName name) readonly
-  | size == 4 = return $ name <+> "registers"
+getScore (Register size name) readonly
+  | size == 4 = return $ stringUtf8 name <+> "registers"
   | otherwise = do
-    tellNL $ "scoreboard players operation" <+> name <+> "registers =" <+> realName <+> "registers"
-    tellNL $ "scoreboard players operation" <+> name <+> "registers %=" <+> intDec size <> "B constants"
-    when (not readonly) $ tellNL $ "scoreboard players operation" <+> realName <+> "registers -=" <+> name <+> "registers"
-    return $ name <+> "registers"
+    let realName' = stringUtf8 $ realName size name
+    let name' = stringUtf8 name
+    tellNL $ "scoreboard players operation" <+> name' <+> "registers =" <+> realName' <+> "registers"
+    tellNL $ "scoreboard players operation" <+> name' <+> "registers %=" <+> intDec size <> "B constants"
+    when (not readonly) $ tellNL $ "scoreboard players operation" <+> realName' <+> "registers -=" <+> name' <+> "registers"
+    return $ stringUtf8 name <+> "registers"
 getScore m@(Memory size _ _ _ _) readonly = do
   calculateAddress m
   tellNL $ "scoreboard players set size memory" <+> intDec size
@@ -60,16 +62,18 @@ getScore m@(Memory size _ _ _ _) readonly = do
 getScore (Immediate i) _ = "imm registers" <$ tellNL ("scoreboard players set imm registers" <+> intDec i)
 
 cleanup :: Operand -> Env ()
-cleanup (Register size realName name) | size /= 4 = do
-      tellNL $ "scoreboard players operation" <+> name <+> "registers %=" <+> intDec size <> "B constants"
-      tellNL $ "scoreboard players operation" <+> realName <+> "registers +=" <+> name <+> "registers"
+cleanup (Register size name) | size /= 4 = do
+  let realName' = stringUtf8 $ realName size name
+  let name' = stringUtf8 name
+  tellNL $ "scoreboard players operation" <+> name' <+> "registers %=" <+> intDec size <> "B constants"
+  tellNL $ "scoreboard players operation" <+> realName' <+> "registers +=" <+> name' <+> "registers"
 cleanup (Memory size index scale base displacement) = tellNL $ "function assembler:library/zip"
 cleanup _ = return ()
 
 signExtend :: Operand -> Env ()
 signExtend op@(getSize -> Just size) | size /= 4 = let
     name = case op of 
-      (Register _ _ name') -> name'
+      (Register _ name') -> stringUtf8 name'
       _ -> "mem"
     bits = (2 ^ (size * 8))
   in tellNL $ "execute if score" <+> name <+> "registers matches" <+> intDec (bits `div` 2) <> ".. run scoreboard players remove" <+> name <+> "registers" <+> intDec bits
@@ -187,5 +191,6 @@ processInstruction (Pop op) = do
   cleanup op
 processInstruction Leave = do
   tellNL $ "scoreboard players operation esp registers = ebp registers"
-  processInstruction (Pop (Register 4 "ebp" "ebp"))
+  processInstruction (Pop (Register 4 "ebp"))
 processInstruction (Label _) = error "Invalid instruction"
+

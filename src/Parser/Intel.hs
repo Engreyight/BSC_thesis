@@ -45,8 +45,8 @@ parseMemory = do
 
 parseLabelName :: Parser String
 parseLabelName = do
-  name@(x : xs) <- some (satisfy (\c -> isAlphaNum c && isAscii c || c `elem` ['_', '.']))
-  if (isLower x || isDigit x) && all (not . isUpper) xs then return name else fail "label name is not a valid function name"
+  name <- some (satisfy (\c -> isAlphaNum c && isAscii c || c `elem` ['_', '.']))
+  if isValidLabel name then return name else fail "label name is not a valid function name"
 
 parseLabel :: Parser Instruction
 parseLabel = Label <$> parseLabelName <* char ':' <* many ws

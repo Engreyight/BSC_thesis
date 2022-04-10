@@ -11,8 +11,11 @@ import Data.Char
 
 type Parser = Parsec ByteString ()
 
+isValidLabel :: String -> Bool
+isValidLabel (x : xs) = (isLower x || isDigit x) && all (not . isUpper) xs
+
 parseRegister :: Parser Operand
-parseRegister = many (char '+') *> choice (concat (zipWith (\i -> zipWith (\a b -> Register i a (stringUtf8 b) <$ try (string b)) ["eax", "ebx", "ecx", "edx", "edi", "esi", "esp", "ebp"]) [1, 2, 4] [["al", "bl", "cl", "dl", "dil", "sil", "spl", "bpl"], ["ax", "bx", "cx", "dx", "di", "si", "sp", "bp"], ["eax", "ebx", "ecx", "edx", "edi", "esi", "esp", "ebp"]]))
+parseRegister = many (char '+') *> choice (concat (zipWith (\size -> map (\name -> Register size name <$ try (string name))) [1, 2, 4] [["al", "bl", "cl", "dl", "dil", "sil", "spl", "bpl"], ["ax", "bx", "cx", "dx", "di", "si", "sp", "bp"], ["eax", "ebx", "ecx", "edx", "edi", "esi", "esp", "ebp"]]))
 
 parseImmediate :: Parser Operand
 parseImmediate = Immediate <$> parseNumber

@@ -1,0 +1,3 @@
+add al, 0xef
+mov edx, 0x789abcde
+add edx, [12]
