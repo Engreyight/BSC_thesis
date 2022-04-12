@@ -34,8 +34,6 @@ sendRcon mId mType msg s = do
 
 makeTest :: FilePath -> Bool -> [(ByteString, Int32)] -> [(Int32, Int32)] -> FilePath -> Socket -> Test
 makeTest mainFun reset reg mem serverFolder s = mainFun ~: do
-  -- listDirectory (funDir serverFolder) >>= mapM_ removeFile
-  -- assemble (funDir serverFolder </> mainFun) [testFile]
   when reset $ do
     sendRcon 0 2 "function assembler:library/nuke" s
     void $ sendRcon 0 2 "function assembler:library/init" s
@@ -63,5 +61,9 @@ runTests host port password serverFolder = let funDir = serverFolder </> "world/
         ("test/tests/test_mov.txt", True, [("eax", 24), ("edx", 0x1234)], [(5, 0x12cd00ab), (4, 0x1234), (3, 0x43210000)]),
         ("test/tests/test_mov_overwrite.txt", False, [("eax", 19), ("edx", 0x1256)], [(5, 0x12abcdab), (4, 0x1234), (3, 0x13572468)]),
         ("test/tests/test_add.txt", True, [("eax", 0x178)], [(3, 0x133)]),
-        ("test/tests/test_add2.txt", False, [("eax", 0x167), ("edx", 0x789abe11)], [])
+        ("test/tests/test_add2.txt", False, [("eax", 0x167), ("edx", 0x789abe11)], []),
+        ("test/tests/test_sub.txt", True, [("edx", 0x3a1c66f6)], [(4, 0x233f), (3, 0x2f680000)]),
+        ("test/tests/test_imul.txt", True, [("eax", 24), ("edx", 18), ("ecx", 120), ("ebx", 72)], []),
+        ("test/tests/test_idiv.txt", True, [("ebx", -2), ("eax", 65279), ("edx", 0)], []),
+        ("test/tests/test_lea.txt", True, [("eax", 224), ("ebx", 220), ("ecx", -540)], [])
       ]

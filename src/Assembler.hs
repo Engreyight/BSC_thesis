@@ -34,32 +34,34 @@ calculateAddress :: Operand -> Env ()
 calculateAddress (Memory size index scale base displacement) = do
   tellNL $ "scoreboard players set index memory 0"
   whenJust index $ \r -> do
-    r' <- getScore r True
+    r' <- getScore r True True
     tellNL $ "scoreboard players operation index memory +=" <+> r'
     when (scale > 1) $ do
       tellNL $ "scoreboard players set imm memory" <+> intDec scale
       tellNL $ "scoreboard players operation index memory *= imm memory"
-  whenJust base $ \r -> getScore r True >>= tellNL . ("scoreboard players operation index memory +=" <+>)
+  whenJust base $ \r -> getScore r True True >>= tellNL . ("scoreboard players operation index memory +=" <+>)
   when (displacement /= 0) $ tellNL $ "scoreboard players" <+> (if displacement > 0 then "add" else "remove") <+> "index memory" <+> intDec (abs displacement)
 calculateAddress _ = error "invalid argument to calculateAddress"
 
-getScore :: Operand -> Bool -> Env Builder
-getScore (Register size name) readonly
+getScore :: Operand -> Bool -> Bool -> Env Builder
+getScore (Register size name) readonly extend
   | size == 4 = return $ stringUtf8 name <+> "registers"
   | otherwise = do
-    let realName' = stringUtf8 $ realName size name
-    let name' = stringUtf8 name
-    tellNL $ "scoreboard players operation" <+> name' <+> "registers =" <+> realName' <+> "registers"
-    tellNL $ "scoreboard players operation" <+> name' <+> "registers %=" <+> intDec size <> "B constants"
-    when (not readonly) $ tellNL $ "scoreboard players operation" <+> realName' <+> "registers -=" <+> name' <+> "registers"
-    return $ stringUtf8 name <+> "registers"
-getScore m@(Memory size _ _ _ _) readonly = do
+    let realsc = (stringUtf8 $ realName size name) <+> "registers"
+    let sc = stringUtf8 name <+> "registers"
+    tellNL $ "scoreboard players operation" <+> sc <+> "=" <+> realsc
+    tellNL $ "scoreboard players operation" <+> sc <+> "%=" <+> intDec size <> "B constants"
+    when (not readonly) $ tellNL $ "scoreboard players operation" <+> realsc <+> "-=" <+> sc
+    when extend $ signExtend size sc
+    return sc
+getScore m@(Memory size _ _ _ _) readonly extend = do
   calculateAddress m
   tellNL $ "scoreboard players set size memory" <+> intDec size
   tellNL $ "scoreboard players set readonly memory" <+> intDec (fromEnum readonly)
   tellNL $ "function assembler:library/unzip"
-  return $ "mem registers"
-getScore (Immediate i) _ = "imm registers" <$ tellNL ("scoreboard players set imm registers" <+> intDec i)
+  when (extend && size < 4) $ signExtend size "mem registers"
+  return "mem registers"
+getScore (Immediate i) _ _ = "imm registers" <$ tellNL ("scoreboard players set imm registers" <+> intDec i)
 
 cleanup :: Operand -> Env ()
 cleanup (Register size name) | size /= 4 = do
@@ -70,14 +72,10 @@ cleanup (Register size name) | size /= 4 = do
 cleanup (Memory size index scale base displacement) = tellNL $ "function assembler:library/zip"
 cleanup _ = return ()
 
-signExtend :: Operand -> Env ()
-signExtend op@(getSize -> Just size) | size /= 4 = let
-    name = case op of 
-      (Register _ name') -> stringUtf8 name'
-      _ -> "mem"
-    bits = (2 ^ (size * 8))
-  in tellNL $ "execute if score" <+> name <+> "registers matches" <+> intDec (bits `div` 2) <> ".. run scoreboard players remove" <+> name <+> "registers" <+> intDec bits
-signExtend _ = error "cannot sign extend operand"
+signExtend :: Int -> Builder -> Env()
+signExtend size sc = do
+  tellNL $ "scoreboard players operation" <+> sc <+> "*=" <+> intDec (4 - size) <> "B constants"
+  tellNL $ "scoreboard players operation" <+> sc <+> "/=" <+> intDec (4 - size) <> "B constants"
 
 testDisjoint :: Builder -> Builder -> Env ()
 testDisjoint sc1 sc2 = do
@@ -87,9 +85,9 @@ testDisjoint sc1 sc2 = do
 
 getConditional :: Conditional -> Env [Builder]
 getConditional (Conditional op1 op2 comp) = do
-  sc1 <- getScore op1 True
+  sc1 <- getScore op1 True True
   sc1 <- if isMemory op1 then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc1
-  sc2 <- getScore op2 True
+  sc2 <- getScore op2 True True
   sc2 <- if isMemory op2 then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc2
   getComparison comp sc1 sc2
 
@@ -109,40 +107,51 @@ getComparison (Test LE) sc1 sc2 = ["execute if score disjoint variables matches 
 
 processInstruction :: Instruction -> Env ()
 processInstruction (Add op1 op2) = do
-  sc1 <- getScore op1 False
-  sc2 <- getScore op2 True
+  sc2 <- getScore op2 True True
+  sc1 <- getScore op1 False True
   tellNL $ "scoreboard players operation" <+> sc1 <+> "+=" <+> sc2
   cleanup op1
 processInstruction (Sub op1 op2) = do
-  sc1 <- getScore op1 False
-  sc2 <- getScore op2 True
+  sc2 <- getScore op2 True True
+  sc1 <- getScore op1 False True
   tellNL $ "scoreboard players operation" <+> sc1 <+> "-=" <+> sc2
   cleanup op1
 processInstruction (Imul op1 op2 op3) = do
-  sc1 <- getScore op1 False
-  sc2 <- getScore op2 True
-  sc3 <- getScore op3 True
+  sc2 <- getScore op2 True True
+  sc3 <- getScore op3 True True
+  sc1 <- getScore op1 False False
   tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   tellNL $ "scoreboard players operation" <+> sc1 <+> "*=" <+> sc3
   cleanup op1
 processInstruction (ExtIdiv op1) = do
-  sc1 <- getScore op1 True
+  sc1 <- getScore op1 True True
   let Just size = getSize op1
-  eax' <- getScore (eax size) False
-  edx' <- getScore (edx size) False
-  tellNL $ "scoreboard players operation" <+> edx' <+> "=" <+> eax'
+  eax' <- if (size == 1) then do
+    sc <- getScore (eax 2) False False
+    tellNL $ "scoreboard players operation" <+> sc <+> "%= 1B constants"
+    sc <$ signExtend 1 sc
+  else getScore (eax size) False True
+  modReg <- if size == 1 then return "mod registers" else getScore (edx size) False False
+  tellNL $ "scoreboard players operation" <+> modReg <+> "=" <+> eax'
   tellNL $ "scoreboard players operation" <+> eax' <+> "/=" <+> sc1
-  tellNL $ "scoreboard players operation" <+> edx' <+> "%=" <+> sc1
-  cleanup $ eax size
-  cleanup $ edx size
+  tellNL $ "scoreboard players operation" <+> modReg <+> "%=" <+> sc1
+  tellNL $ "execute if score" <+> eax' <+> "matches ..-1 unless score" <+> modReg <+> "matches 0 run scoreboard players add" <+> eax' <+> "1"
+  tellNL $ "execute if score" <+> eax' <+> "matches ..-1 unless score" <+> modReg <+> "matches 0 run scoreboard players operation" <+> modReg <+> "-=" <+> sc1
+  if size == 1 then do
+    tellNL $ "scoreboard players operation" <+> eax' <+> "%= 1B constants"
+    tellNL $ "scoreboard players operation" <+> modReg <+> "*= 1B constants"
+    tellNL $ "scoreboard players operation" <+> eax' <+> "+=" <+> modReg
+    cleanup $ eax 2
+  else do
+    cleanup $ edx size
+    cleanup $ eax size
 processInstruction (Mov ext op1 op2) = do
-  sc1 <- getScore op1 False
-  sc2 <- getScore op2 True
-  when ext $ signExtend op2
+  sc2 <- getScore op2 True ext
+  sc1 <- getScore op1 False False
   tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   cleanup op1
 processInstruction (Lea op1 op2) = do
-  sc1 <- getScore op1 False
+  sc1 <- getScore op1 False False
   calculateAddress op2
   tellNL $ "scoreboard players operation" <+> sc1 <+> "= index memory"
   cleanup op1
@@ -161,32 +170,32 @@ processInstruction (Jcc trueLabel falseLabel cond) = do
   tellNL $ "execute if score condition variables matches 0 run function assembler:" <> stringUtf8 falseLabel
 processInstruction (Cmovcc op1 op2 cond) = do
   conds <- getConditional cond
-  sc1 <- getScore op1 False
-  sc2 <- getScore op2 True
+  sc2 <- getScore op2 True True
+  sc1 <- getScore op1 False False
   traverse (tellNL . (<+> "run scoreboard players operation" <+> sc1 <+> "=" <+> sc2)) conds
   cleanup op1
 processInstruction (Setcc op cond) = do
   conds <- getConditional cond
   tellNL $ "scoreboard players set bool variables 0"
   traverse (tellNL . (<+> "run scoreboard players set bool variables 1")) conds
-  sc <- getScore op False
+  sc <- getScore op False False
   tellNL $ "scoreboard players operation" <+> sc <+> "= bool variables"
   cleanup op
 processInstruction Ret = tellNL $ "scoreboard players add esp registers 4"
 processInstruction (Push op) = do
-  sc2 <- getScore op True
+  sc2 <- getScore op True True
   sc2 <- if isMemory op then "mem2 registers" <$ tellNL "scoreboard players operation mem2 registers = mem registers" else return sc2
   let size = maybe 4 id (getSize op)
-  sc1 <- getScore (espMinus size) False
+  sc1 <- getScore (espMinus size) False False
   tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   cleanup (espMinus size)
   tellNL $ "scoreboard players remove esp registers" <+> intDec size
 processInstruction (Pop op) = do
   let size = maybe 4 id (getSize op)
   tellNL $ "scoreboard players add esp registers" <+> intDec size
-  sc2 <- getScore (espMinus size) True
+  sc2 <- getScore (espMinus size) True True
   sc2 <- if isMemory op then "mem2 registers" <$ tellNL "scoreboard players operation mem2 registers = mem registers" else return sc2
-  sc1 <- getScore op True
+  sc1 <- getScore op False False
   tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   cleanup op
 processInstruction Leave = do

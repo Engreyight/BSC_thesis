@@ -1,0 +1,5 @@
+mov ebp, 47
+mov esp, 21
+lea eax, [ebp*4+esp+15]
+lea ebx, -4[eax]
+lea ecx, -1200[ebx*2+ebx]

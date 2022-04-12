@@ -1,0 +1,9 @@
+mov eax, -6
+mov ecx, 3
+cdq
+idiv ecx
+mov ebx, eax
+mov eax, 0
+mov al, -5
+cbw
+idiv cl
