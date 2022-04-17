@@ -1,0 +1,5 @@
+mov al, 0xbc
+movzx cx, al
+movsx ax, al
+movsx edx, ax
+movsx ebx, cx

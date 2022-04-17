@@ -10,7 +10,7 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Sub Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Imul Operand Operand Operand  -- rm / r rmi / r rm i
   | ExtIdiv Operand  -- rm
-  | Mov Bool Operand Operand  -- r rmi / m ri (rm rmi but only one m)
+  | Mov Bool Operand Operand  -- r rmi / m ri (rm rmi but only one m) / r rm for ext
   | Lea Operand Operand  -- r m
   | Label String
   | Ret
@@ -22,11 +22,11 @@ data Instruction = Add Operand Operand  -- r rmi / m ri (rm rmi but only one m)
   | Push Operand  -- rmi16/32
   | Pop Operand  -- rm16/32
   | Leave
-  deriving (Show)
+  deriving (Show, Eq)
 
-data Conditional = Conditional Operand Operand Comparison deriving Show  -- r rmi / m ri (rm rmi but only one m)
-data Comparison = Cmp Condition | Test Condition deriving Show
-data Condition = E | NE | G | GE | L | LE deriving Show
+data Conditional = Conditional Operand Operand Comparison Condition deriving (Show, Eq)  -- r rmi / m ri (rm rmi but only one m)
+data Comparison = Cmp | Test deriving (Show, Eq)
+data Condition = E | NE | G | GE | L | LE deriving (Show, Eq, Bounded, Enum)
 
 instance Show Builder where
     show = show . toLazyByteString
@@ -73,3 +73,9 @@ realName :: Int -> String -> String
 realName 2 name = 'e' : name
 realName 1 [a, 'l'] = ['e', a, 'x']
 realName 1 [a, b, 'l'] = ['e', a, b]
+
+sizedRegister :: Int -> String -> String
+sizedRegister 4 name = name
+sizedRegister 2 ('e' : name) = name
+sizedRegister 1 ['e', a, 'x'] = [a, 'l']
+sizedRegister 1 ['e', a, b] = [a, b, 'l']

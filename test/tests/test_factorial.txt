@@ -1,0 +1,21 @@
+jmp main
+
+factorial:
+	mov eax, 1
+	cmp edi, 1
+	jle l1
+l2:
+	mov edx, edi
+	sub edi, 1
+	imul eax, edx
+	cmp edi, 1
+	jne l2
+l1:
+	ret
+
+main:
+	mov edi, 5
+	call factorial
+	mov ecx, eax
+	mov edi, 10
+	call factorial

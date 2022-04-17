@@ -4,7 +4,7 @@ module Parser.Base where
 import Types
 
 import Text.Parsec hiding ((<|>), some, many, optional)
-import Data.ByteString (ByteString)
+import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Builder (stringUtf8)
 import Control.Applicative
 import Data.Char

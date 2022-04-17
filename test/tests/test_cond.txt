@@ -1,0 +1,12 @@
+mov eax, 3
+mov edx, 10
+cmp eax, 0
+cmovl ebx, edx
+mov edx, -2
+test eax, ebx
+cmove ecx, edx
+test eax, ecx
+setg al
+mov edx, 5
+cmp eax, ecx
+setle dl

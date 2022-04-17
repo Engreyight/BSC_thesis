@@ -81,49 +81,49 @@ testDisjoint :: Builder -> Builder -> Env ()
 testDisjoint sc1 sc2 = do
   tellNL $ "scoreboard players operation op1 variables =" <+> sc1
   tellNL $ "scoreboard players operation op2 variables =" <+> sc2
-  tellNL $ "funtion assembler:library/disjoint"
+  tellNL $ "function assembler:library/disjoint"
 
 getConditional :: Conditional -> Env [Builder]
-getConditional (Conditional op1 op2 comp) = do
+getConditional (Conditional op1 op2 comp cond) = do
   sc1 <- getScore op1 True True
   sc1 <- if isMemory op1 then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc1
   sc2 <- getScore op2 True True
   sc2 <- if isMemory op2 then "mem variables" <$ tellNL "scoreboard players operation mem variables = mem registers" else return sc2
-  getComparison comp sc1 sc2
+  getComparison comp cond sc1 sc2
 
-getComparison :: Comparison -> Builder -> Builder -> Env [Builder]
-getComparison (Cmp E) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "=" <+> sc2]
-getComparison (Cmp NE) sc1 sc2 = return $ ["execute unless score" <+> sc1 <+> "=" <+> sc2]
-getComparison (Cmp G) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> ">" <+> sc2]
-getComparison (Cmp GE) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> ">=" <+> sc2]
-getComparison (Cmp L) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "<" <+> sc2]
-getComparison (Cmp LE) sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "<=" <+> sc2]
-getComparison (Test E) sc1 sc2 = ["execute if score disjoint variables matches 1"] <$ testDisjoint sc1 sc2
-getComparison (Test NE) sc1 sc2 = ["execute if score disjoint variables matches 0"] <$ testDisjoint sc1 sc2
-getComparison (Test G) sc1 sc2 = ["execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches 0..", "execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches 0.."] <$ testDisjoint sc1 sc2
-getComparison (Test GE) sc1 sc2 = return ["execute if score" <+> sc1 <+> "matches 0..", "execute if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches 0.."]
-getComparison (Test L) sc1 sc2 = return ["execute if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches ..-1"]
-getComparison (Test LE) sc1 sc2 = ["execute if score disjoint variables matches 1", "execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches ..-1"] <$ testDisjoint sc1 sc2
+getComparison :: Comparison -> Condition -> Builder -> Builder -> Env [Builder]
+getComparison Cmp E sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "=" <+> sc2]
+getComparison Cmp NE sc1 sc2 = return $ ["execute unless score" <+> sc1 <+> "=" <+> sc2]
+getComparison Cmp G sc1 sc2 = return $ ["execute if score" <+> sc1 <+> ">" <+> sc2]
+getComparison Cmp GE sc1 sc2 = return $ ["execute if score" <+> sc1 <+> ">=" <+> sc2]
+getComparison Cmp L sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "<" <+> sc2]
+getComparison Cmp LE sc1 sc2 = return $ ["execute if score" <+> sc1 <+> "<=" <+> sc2]
+getComparison Test E sc1 sc2 = ["execute if score disjoint variables matches 1"] <$ testDisjoint sc1 sc2
+getComparison Test NE sc1 sc2 = ["execute if score disjoint variables matches 0"] <$ testDisjoint sc1 sc2
+getComparison Test G sc1 sc2 = ["execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches 0..", "execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches 0.."] <$ testDisjoint sc1 sc2
+getComparison Test GE sc1 sc2 = return ["execute if score" <+> sc1 <+> "matches 0..", "execute if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches 0.."]
+getComparison Test L sc1 sc2 = return ["execute if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches ..-1"]
+getComparison Test LE sc1 sc2 = ["execute if score disjoint variables matches 1", "execute if score disjoint variables matches 0 if score" <+> sc1 <+> "matches ..-1 if score" <+> sc2 <+> "matches ..-1"] <$ testDisjoint sc1 sc2
 
-processInstruction :: Instruction -> Env ()
-processInstruction (Add op1 op2) = do
+processInstruction :: Builder -> Instruction-> Env ()
+processInstruction _ (Add op1 op2) = do
   sc2 <- getScore op2 True True
   sc1 <- getScore op1 False True
   tellNL $ "scoreboard players operation" <+> sc1 <+> "+=" <+> sc2
   cleanup op1
-processInstruction (Sub op1 op2) = do
+processInstruction _ (Sub op1 op2) = do
   sc2 <- getScore op2 True True
   sc1 <- getScore op1 False True
   tellNL $ "scoreboard players operation" <+> sc1 <+> "-=" <+> sc2
   cleanup op1
-processInstruction (Imul op1 op2 op3) = do
+processInstruction _ (Imul op1 op2 op3) = do
   sc2 <- getScore op2 True True
   sc3 <- getScore op3 True True
   sc1 <- getScore op1 False False
-  tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
+  when (op1 /= op2) $ tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   tellNL $ "scoreboard players operation" <+> sc1 <+> "*=" <+> sc3
   cleanup op1
-processInstruction (ExtIdiv op1) = do
+processInstruction _ (ExtIdiv op1) = do
   sc1 <- getScore op1 True True
   let Just size = getSize op1
   eax' <- if (size == 1) then do
@@ -145,44 +145,44 @@ processInstruction (ExtIdiv op1) = do
   else do
     cleanup $ edx size
     cleanup $ eax size
-processInstruction (Mov ext op1 op2) = do
+processInstruction _ (Mov ext op1 op2) = do
   sc2 <- getScore op2 True ext
   sc1 <- getScore op1 False False
   tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   cleanup op1
-processInstruction (Lea op1 op2) = do
+processInstruction _ (Lea op1 op2) = do
   sc1 <- getScore op1 False False
   calculateAddress op2
   tellNL $ "scoreboard players operation" <+> sc1 <+> "= index memory"
   cleanup op1
-processInstruction (Call label) = do
+processInstruction prefix (Call label) = do
   tellNL $ "scoreboard players remove esp registers 4"
-  tellNL $ "function assembler:" <> stringUtf8 label
-processInstruction (Jmp label) = tellNL $ "function assembler:" <> stringUtf8 label
-processInstruction (Jcc trueLabel falseLabel cond) = do
+  tellNL $ "function" <+> prefix <> stringUtf8 label
+processInstruction prefix (Jmp label) = tellNL $ "function" <+> prefix <> stringUtf8 label
+processInstruction prefix (Jcc trueLabel falseLabel cond) = do
   conds <- getConditional cond
   tellNL $ "scoreboard players set condition variables 0"
   tellNL $ "data modify storage assembler:memory conditions prepend value 0"
   traverse (tellNL . (<+> "store result storage assembler:memory conditions[0] int 1 run scoreboard players set condition variables 1")) conds
-  tellNL $ "execute if score condition variables matches 1 run function assembler:" <> stringUtf8 trueLabel
+  tellNL $ "execute if score condition variables matches 1 run function" <+> prefix <> stringUtf8 trueLabel
   tellNL $ "execute store result score condition variables run data get storage assembler:memory conditions[0]"
   tellNL $ "data remove storage assembler:memory conditions[0]"
-  tellNL $ "execute if score condition variables matches 0 run function assembler:" <> stringUtf8 falseLabel
-processInstruction (Cmovcc op1 op2 cond) = do
+  tellNL $ "execute if score condition variables matches 0 run function" <+> prefix <> stringUtf8 falseLabel
+processInstruction _ (Cmovcc op1 op2 cond) = do
   conds <- getConditional cond
   sc2 <- getScore op2 True True
   sc1 <- getScore op1 False False
   traverse (tellNL . (<+> "run scoreboard players operation" <+> sc1 <+> "=" <+> sc2)) conds
   cleanup op1
-processInstruction (Setcc op cond) = do
+processInstruction _ (Setcc op cond) = do
   conds <- getConditional cond
   tellNL $ "scoreboard players set bool variables 0"
   traverse (tellNL . (<+> "run scoreboard players set bool variables 1")) conds
   sc <- getScore op False False
   tellNL $ "scoreboard players operation" <+> sc <+> "= bool variables"
   cleanup op
-processInstruction Ret = tellNL $ "scoreboard players add esp registers 4"
-processInstruction (Push op) = do
+processInstruction _ Ret = tellNL $ "scoreboard players add esp registers 4"
+processInstruction _ (Push op) = do
   sc2 <- getScore op True True
   sc2 <- if isMemory op then "mem2 registers" <$ tellNL "scoreboard players operation mem2 registers = mem registers" else return sc2
   let size = maybe 4 id (getSize op)
@@ -190,7 +190,7 @@ processInstruction (Push op) = do
   tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   cleanup (espMinus size)
   tellNL $ "scoreboard players remove esp registers" <+> intDec size
-processInstruction (Pop op) = do
+processInstruction _ (Pop op) = do
   let size = maybe 4 id (getSize op)
   tellNL $ "scoreboard players add esp registers" <+> intDec size
   sc2 <- getScore (espMinus size) True True
@@ -198,8 +198,8 @@ processInstruction (Pop op) = do
   sc1 <- getScore op False False
   tellNL $ "scoreboard players operation" <+> sc1 <+> "=" <+> sc2
   cleanup op
-processInstruction Leave = do
+processInstruction _p Leave = do
   tellNL $ "scoreboard players operation esp registers = ebp registers"
-  processInstruction (Pop (Register 4 "ebp"))
-processInstruction (Label _) = error "Invalid instruction"
+  processInstruction _p (Pop (Register 4 "ebp"))
+processInstruction _ (Label _) = error "Invalid instruction"
 

@@ -99,6 +99,7 @@ parseImul = do
   some ws
   ops <- sepBy1 parseOperand comma
   size <- maybe (fail "ambigous operand sizes") return (foldr ((<|>) . getSize) Nothing ops)
+  when (size < 2) $ fail "invalid size for imul"
   ops <- traverse (assertSize size) ops
   case ops of
     [op1]
@@ -133,6 +134,8 @@ parseLea = do
   string "lea"
   some ws
   ops <- sepBy1 parseOperand comma
+  let Just size = getSize $ head ops
+  when (size < 2) $ fail "invalid size for lea"
   case ops of
     [op1, op2]
       | isRegister op1 && isMemory op2
@@ -165,7 +168,7 @@ parseConditional = do
     [op1, op2]
       | isRegister op1
       || (isMemory op1 && not (isMemory op2))
-      -> return $ Conditional op1 op2 . mode
+      -> return $ Conditional op1 op2 mode
     _ -> fail $ "Invalid operands for cmp/test"
 
 parseCondition :: Parser Condition

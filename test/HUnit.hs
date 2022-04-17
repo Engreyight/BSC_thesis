@@ -37,7 +37,7 @@ makeTest mainFun reset reg mem serverFolder s = mainFun ~: do
   when reset $ do
     sendRcon 0 2 "function assembler:library/nuke" s
     void $ sendRcon 0 2 "function assembler:library/init" s
-  sendRcon 0 2 ("function assembler:tests/" <> pack (mainFun </> mainFun)) s
+  sendRcon 0 2 ("function assembler:tests/" <> pack (mainFun ++ "/" ++ mainFun)) s
   sendRcon 0 2 "save-all" s
   when (not $ null reg) $ do
     registers <- registers <$> nbtContents (serverFolder </> "world/data/scoreboard.dat")
@@ -50,7 +50,7 @@ runTests :: HostName -> ServiceName -> ByteString -> FilePath -> IO ()
 runTests host port password serverFolder = let funDir = serverFolder </> "world/datapacks/assembler/data/assembler/functions/tests" in do
   createDirectoryIfMissing False funDir
   s <- connectToServer host port password
-  let (assembleAll, testCases) = traverse (\(testFile, reset, reg, mem) -> let mainFun = takeBaseName testFile in (assemble (funDir </> mainFun) [testFile], makeTest mainFun reset reg mem serverFolder s)) tests
+  let (assembleAll, testCases) = traverse (\(testFile, reset, reg, mem) -> let mainFun = takeBaseName testFile in (assemble (funDir </> mainFun) ("assembler:tests/" <> stringUtf8 mainFun <> "/") [testFile], makeTest mainFun reset reg mem serverFolder s)) tests
   assembleAll
   sendRcon 0 2 "reload" s
   runTestTT $ TestList testCases
@@ -63,7 +63,11 @@ runTests host port password serverFolder = let funDir = serverFolder </> "world/
         ("test/tests/test_add.txt", True, [("eax", 0x178)], [(3, 0x133)]),
         ("test/tests/test_add2.txt", False, [("eax", 0x167), ("edx", 0x789abe11)], []),
         ("test/tests/test_sub.txt", True, [("edx", 0x3a1c66f6)], [(4, 0x233f), (3, 0x2f680000)]),
-        ("test/tests/test_imul.txt", True, [("eax", 24), ("edx", 18), ("ecx", 120), ("ebx", 72)], []),
+        ("test/tests/test_imul.txt", True, [("eax", 24), ("edx", 18), ("ecx", 120), ("ebx", 18464)], []),
         ("test/tests/test_idiv.txt", True, [("ebx", -2), ("eax", 65279), ("edx", 0)], []),
-        ("test/tests/test_lea.txt", True, [("eax", 224), ("ebx", 220), ("ecx", -540)], [])
+        ("test/tests/test_mov_ext.txt", True, [("eax", 0xffbc), ("ecx", 0xbc), ("edx", -0x44), ("ebx", 0xbc)], []),
+        ("test/tests/test_lea.txt", True, [("eax", 224), ("ebx", 220), ("ecx", -540)], []),
+        ("test/tests/test_factorial.txt", True, [("eax", 3628800), ("ecx", 120)], []),
+        ("test/tests/test_cond.txt", True, [("eax", 1), ("ebx", 0), ("ecx", -2), ("edx", 0)], []),
+        ("test/tests/test_stack.txt", True, [("eax", 11), ("ecx", 19), ("edx", 30), ("ebp", 7), ("ebx", 32), ("esp", 36)], [(8, 36), (7, 7), (6, 9), (5, 12), (4, 30), (3, 19), (2, 11)])
       ]

@@ -3,6 +3,6 @@ mov edx, 6
 imul edx
 imul edx, 3
 imul ecx, eax, 5
-mov BYTE PTR [12], 7
-mov bl, cl
-imul bl, [12]
+mov WORD PTR [12], 700
+mov bx, cx
+imul bx, [12]

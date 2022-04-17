@@ -1,0 +1,17 @@
+mov ebp, 7
+mov esp, 36
+push esp
+push ebp
+mov ebp, esp
+sub esp, 8
+mov DWORD PTR [ebp-4], 9
+mov DWORD PTR [ebp-8], 12
+push 30
+push 19
+push 11
+pop eax
+pop ecx
+pop edx
+leave
+mov ebx, esp
+pop esp
